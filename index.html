@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>
+  :root{color-scheme:light}
+  html,body{margin:0}
+  body{font:14px system-ui,-apple-system,"Segoe UI",sans-serif}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+</style>
+<title>Crease Matchup</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: sticky bar, 2x2 slot grid collapsing to one column, reference table beneath */
+:root{
+  --bg:#f2f4f7; --panel:#ffffff; --sunk:#e7ebf0; --line:#d2d9e2;
+  --fg:#141a22; --dim:#5b6878; --faint:#8995a5;
+  --ice:#0a7ea4; --ice-soft:#d7eef5;
+  --good:#1a7f52; --mid:#9a6b12; --bad:#b3372e;
+  --f-disp:"Barlow Condensed",ui-sans-serif,system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0d1218; --panel:#161d26; --sunk:#111821; --line:#2a3542;
+  --fg:#e7edf4; --dim:#9aa7b7; --faint:#6b7889;
+  --ice:#4cc3e6; --ice-soft:#13303c;
+  --good:#4cc08a; --mid:#d6a640; --bad:#e8776b; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d1218; --panel:#161d26; --sunk:#111821; --line:#2a3542;
+  --fg:#e7edf4; --dim:#9aa7b7; --faint:#6b7889;
+  --ice:#4cc3e6; --ice-soft:#13303c;
+  --good:#4cc08a; --mid:#d6a640; --bad:#e8776b; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);line-height:1.45;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:0 56px}
+h1,h2,h3{margin:0;text-wrap:balance}
+
+header.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);
+  border-bottom:1px solid var(--line);padding-block:14px 12px}
+.barin{max-width:1180px;margin:0 auto;padding-inline:16px;display:flex;flex-wrap:wrap;gap:12px 20px;align-items:baseline}
+h1{font-family:var(--f-disp);font-size:30px;font-weight:700;letter-spacing:.01em;line-height:1}
+.sub{color:var(--dim);font-size:13px;flex:1 1 220px;min-width:0}
+.base{font-family:var(--f-mono);font-size:11.5px;color:var(--faint);white-space:nowrap}
+
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:20px}
+@media(max-width:780px){.grid{grid-template-columns:1fr}}
+
+.slot{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:11px;min-width:0}
+.slot.best{border-color:var(--ice);box-shadow:0 0 0 1px var(--ice)}
+.slothead{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.slotno{font-family:var(--f-disp);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.pill{font-family:var(--f-disp);font-size:12px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  padding:2px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.pill.g{color:var(--good)} .pill.m{color:var(--mid)} .pill.b{color:var(--bad)}
+
+label.fl{display:block;font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--faint);margin-bottom:4px;font-weight:600}
+select{width:100%;font-family:var(--f-body);font-size:14px;padding:7px 8px;border-radius:6px;
+  border:1px solid var(--line);background:var(--sunk);color:var(--fg)}
+select:focus-visible,button:focus-visible{outline:2px solid var(--ice);outline-offset:1px}
+.row2{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}
+.seg{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{font-family:var(--f-disp);font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  padding:8px 11px;border:0;background:var(--sunk);color:var(--dim);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ice);color:#fff}
+:root[data-theme="dark"] .seg button[aria-pressed="true"]{color:#06161c}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .seg button[aria-pressed="true"]{color:#06161c}}
+
+.out{background:var(--sunk);border-radius:8px;padding:12px;display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center}
+.sv{font-family:var(--f-disp);font-size:44px;font-weight:700;line-height:.9;font-variant-numeric:tabular-nums}
+.svl{font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--faint);font-weight:600;margin-top:3px}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.st{min-width:0}
+.st b{display:block;font-family:var(--f-mono);font-size:17px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.15}
+.st span{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+.note{font-size:11.5px;color:var(--dim);font-family:var(--f-mono)}
+
+section.ref{margin-top:30px}
+.refhead{display:flex;flex-wrap:wrap;gap:10px;align-items:baseline;justify-content:space-between;margin-bottom:10px}
+h2{font-family:var(--f-disp);font-size:20px;font-weight:600;letter-spacing:.02em}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{padding:6px 11px;text-align:right;font-family:var(--f-mono);font-size:12.5px;white-space:nowrap}
+th{font-family:var(--f-disp);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);
+  font-weight:600;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel)}
+td:first-child,th:first-child{text-align:left}
+tbody tr:nth-child(even){background:var(--sunk)}
+td.q{font-weight:600}
+td.g{color:var(--good)} td.m{color:var(--mid)} td.b{color:var(--bad)}
+.foot{margin-top:22px;font-size:12px;color:var(--dim);max-width:62ch}
+.foot code{font-family:var(--f-mono);font-size:11.5px;background:var(--sunk);padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+
+<header class="bar"><div class="barin">
+  <h1>Crease Matchup</h1>
+  <div class="sub">Projected save percentage, saves and goals against for any goalie, opponent and venue.</div>
+  <div class="base" id="base"></div>
+</div></header>
+
+<div class="wrap">
+  <div class="grid" id="grid"></div>
+
+  <section class="ref">
+    <div class="refhead">
+      <h2>All 31 opponents</h2>
+      <div><label class="fl" for="refg">Goalie</label><select id="refg"></select></div>
+    </div>
+    <div class="tw"><table>
+      <thead><tr><th>Opponent</th><th>Shots</th><th>SV%</th><th>Saves</th><th>GA</th><th>Shots</th><th>SV%</th><th>Saves</th><th>GA</th></tr>
+      <tr><th></th><th colspan="4" style="text-align:center;color:var(--ice)">at home</th><th colspan="4" style="text-align:center;color:var(--ice)">on the road</th></tr></thead>
+      <tbody id="reft"></tbody>
+    </table></div>
+  </section>
+
+  <p class="foot">Shots and danger are a two-sided blend: the opponent&rsquo;s shot generation against your goalie&rsquo;s team suppression, then a league-constant venue factor (<code>home &times;0.985 shots, &times;0.990 danger</code>). Danger is expected goals per shot plus half the shrunk finishing talent. Save percentage adds the goalie&rsquo;s own goals-saved-above-expected rate, shrunk with a 6,000-shot prior. Team inputs are MoneyPuck 2023-24 through 2025-26, last season weighted half. No rest or back-to-back term.</p>
+</div>
+<script>
+const D={"LG":{"sf":28.3264,"dgr":0.109682},"teams":{"ANA":{"osf":1.0456,"odg":0.9738,"dsa":1.05,"ddg":1.041,"sf":29.62,"dgr":0.10681,"sa":29.71,"ddgr":0.11501},"BOS":{"osf":0.9642,"odg":1.0123,"dsa":1.0482,"ddg":1.0059,"sf":27.31,"dgr":0.11103,"sa":29.66,"ddgr":0.11114},"BUF":{"osf":1.0076,"odg":1.0113,"dsa":1.028,"ddg":1.0143,"sf":28.54,"dgr":0.11092,"sa":29.09,"ddgr":0.11207},"CAR":{"osf":1.1399,"odg":1.0036,"dsa":0.8617,"ddg":1.0551,"sf":32.29,"dgr":0.11007,"sa":24.39,"ddgr":0.11657},"CBJ":{"osf":1.0393,"odg":0.9582,"dsa":1.0583,"ddg":0.9779,"sf":29.44,"dgr":0.1051,"sa":29.95,"ddgr":0.10804},"CGY":{"osf":1.02,"odg":0.8926,"dsa":1.0508,"ddg":0.9833,"sf":28.89,"dgr":0.0979,"sa":29.74,"ddgr":0.10864},"CHI":{"osf":0.877,"odg":0.9524,"dsa":1.0819,"ddg":0.9997,"sf":24.84,"dgr":0.10446,"sa":30.62,"ddgr":0.11045},"COL":{"osf":1.1648,"odg":0.9944,"dsa":0.9443,"ddg":0.9824,"sf":33.0,"dgr":0.10906,"sa":26.72,"ddgr":0.10854},"DAL":{"osf":0.9484,"odg":1.1127,"dsa":0.9561,"ddg":0.9744,"sf":26.86,"dgr":0.12205,"sa":27.06,"ddgr":0.10766},"DET":{"osf":0.9963,"odg":0.9985,"dsa":1.012,"ddg":0.9955,"sf":28.22,"dgr":0.10952,"sa":28.64,"ddgr":0.10999},"EDM":{"osf":1.0874,"odg":1.0023,"dsa":0.9536,"ddg":1.0151,"sf":30.8,"dgr":0.10993,"sa":26.99,"ddgr":0.11214},"FLA":{"osf":1.0432,"odg":0.9943,"dsa":0.9492,"ddg":1.0462,"sf":29.55,"dgr":0.10906,"sa":26.86,"ddgr":0.11558},"LAK":{"osf":1.0126,"odg":0.9588,"dsa":0.9559,"ddg":0.9549,"sf":28.68,"dgr":0.10516,"sa":27.05,"ddgr":0.1055},"MIN":{"osf":1.0269,"odg":0.9839,"dsa":1.0429,"ddg":0.9029,"sf":29.09,"dgr":0.10792,"sa":29.51,"ddgr":0.09975},"MTL":{"osf":0.9322,"odg":1.0908,"dsa":1.0234,"ddg":1.0551,"sf":26.41,"dgr":0.11964,"sa":28.96,"ddgr":0.11656},"NJD":{"osf":1.0421,"odg":0.9652,"dsa":0.9775,"ddg":1.0048,"sf":29.52,"dgr":0.10586,"sa":27.66,"ddgr":0.11101},"NSH":{"osf":1.0178,"odg":0.9611,"dsa":1.0468,"ddg":0.9848,"sf":28.83,"dgr":0.10541,"sa":29.62,"ddgr":0.1088},"NYI":{"osf":1.0145,"odg":0.9544,"dsa":1.0147,"ddg":1.0453,"sf":28.74,"dgr":0.10468,"sa":28.72,"ddgr":0.11549},"NYR":{"osf":0.9464,"odg":1.0232,"dsa":1.0289,"ddg":1.0115,"sf":26.81,"dgr":0.11223,"sa":29.12,"ddgr":0.11175},"OTT":{"osf":1.0399,"odg":0.998,"dsa":0.9181,"ddg":0.9827,"sf":29.46,"dgr":0.10947,"sa":25.98,"ddgr":0.10857},"PHI":{"osf":0.953,"odg":0.9901,"dsa":0.9181,"ddg":0.9946,"sf":26.99,"dgr":0.10859,"sa":25.98,"ddgr":0.10988},"PIT":{"osf":1.0321,"odg":1.0225,"dsa":1.0006,"ddg":1.0192,"sf":29.24,"dgr":0.11214,"sa":28.32,"ddgr":0.1126},"SEA":{"osf":0.9316,"odg":0.9543,"dsa":1.0344,"ddg":0.9576,"sf":26.39,"dgr":0.10467,"sa":29.27,"ddgr":0.10579},"SJS":{"osf":0.9133,"odg":0.9833,"dsa":1.0928,"ddg":0.9906,"sf":25.87,"dgr":0.10785,"sa":30.93,"ddgr":0.10945},"STL":{"osf":0.9233,"odg":0.971,"dsa":1.003,"ddg":0.9673,"sf":26.15,"dgr":0.1065,"sa":28.38,"ddgr":0.10687},"TBL":{"osf":1.0026,"odg":1.114,"dsa":0.97,"ddg":0.9847,"sf":28.4,"dgr":0.12218,"sa":27.45,"ddgr":0.10879},"TOR":{"osf":0.9765,"odg":1.0206,"dsa":1.1135,"ddg":0.9771,"sf":27.66,"dgr":0.11195,"sa":31.51,"ddgr":0.10795},"UTA":{"osf":0.986,"odg":1.0365,"dsa":0.938,"ddg":1.0527,"sf":27.93,"dgr":0.11369,"sa":26.55,"ddgr":0.11631},"VAN":{"osf":0.9285,"odg":1.0048,"dsa":1.0288,"ddg":1.0244,"sf":26.3,"dgr":0.11021,"sa":29.11,"ddgr":0.11317},"VGK":{"osf":1.043,"odg":0.9996,"dsa":0.907,"ddg":0.9921,"sf":29.54,"dgr":0.10963,"sa":25.67,"ddgr":0.10961},"WPG":{"osf":0.965,"odg":1.0192,"dsa":0.9887,"ddg":1.0051,"sf":27.34,"dgr":0.11179,"sa":27.98,"ddgr":0.11105},"WSH":{"osf":0.979,"odg":1.0544,"dsa":1.0028,"ddg":1.0149,"sf":27.73,"dgr":0.11565,"sa":28.38,"ddgr":0.11213}},"goalies":[{"n":"Andrei Vasilevskiy","t":"TBL","s":0.00523,"gs":57.0,"sh":0.7},{"n":"Igor Shesterkin","t":"NYR","s":0.0054,"gs":57.0,"sh":0.7},{"n":"Dustin Wolf","t":"CGY","s":-0.00034,"gs":57.0,"sh":0.7},{"n":"Jake Oettinger","t":"DAL","s":0.00126,"gs":55.4,"sh":0.68},{"n":"Ilya Sorokin","t":"NYI","s":0.00458,"gs":55.4,"sh":0.68},{"n":"Jeremy Swayman","t":"BOS","s":0.00351,"gs":55.4,"sh":0.68},{"n":"Juuse Saros","t":"NSH","s":0.0,"gs":55.4,"sh":0.68},{"n":"Jesper Wallstedt","t":"MIN","s":0.00019,"gs":55.4,"sh":0.68},{"n":"Jet Greaves","t":"CBJ","s":0.0036,"gs":55.4,"sh":0.68},{"n":"Logan Thompson","t":"WSH","s":0.0047,"gs":53.8,"sh":0.66},{"n":"Spencer Knight","t":"CHI","s":0.00132,"gs":53.8,"sh":0.66},{"n":"Lukas Dostal","t":"ANA","s":-0.00024,"gs":52.1,"sh":0.64},{"n":"Jacob Markstrom","t":"FLA","s":-0.0005,"gs":50.5,"sh":0.62},{"n":"Karel Vejmelka","t":"UTA","s":0.00043,"gs":50.5,"sh":0.62},{"n":"Linus Ullmark","t":"OTT","s":0.00203,"gs":50.5,"sh":0.62},{"n":"Yaroslav Askarov","t":"SJS","s":-0.00244,"gs":50.5,"sh":0.62},{"n":"Kevin Lankinen","t":"VAN","s":-0.00292,"gs":50.5,"sh":0.62},{"n":"Sergei Bobrovsky","t":"TOR","s":0.00058,"gs":48.9,"sh":0.6},{"n":"Jakub Dobes","t":"MTL","s":0.00293,"gs":48.9,"sh":0.6},{"n":"John Gibson","t":"DET","s":0.00036,"gs":48.9,"sh":0.6},{"n":"Joel Hofer","t":"STL","s":0.00125,"gs":48.9,"sh":0.6},{"n":"Connor Hellebuyck","t":"WPG","s":0.00586,"gs":44.8,"sh":0.55},{"n":"Carter Hart","t":"VGK","s":-0.00054,"gs":44.8,"sh":0.55},{"n":"Ukko-Pekka Luukkonen","t":"BUF","s":4e-05,"gs":44.8,"sh":0.55},{"n":"Dan Vladar","t":"PHI","s":-0.00018,"gs":44.8,"sh":0.55},{"n":"Jake Allen","t":"NJD","s":0.00147,"gs":44.8,"sh":0.55},{"n":"Joey Daccord","t":"SEA","s":0.00032,"gs":44.8,"sh":0.55},{"n":"Scott Wedgewood","t":"COL","s":0.00224,"gs":43.2,"sh":0.53},{"n":"Brandon Bussi","t":"CAR","s":0.00027,"gs":40.7,"sh":0.5},{"n":"Pyotr Kochetkov","t":"CAR","s":0.00029,"gs":40.7,"sh":0.5},{"n":"Darcy Kuemper","t":"LAK","s":0.00135,"gs":40.7,"sh":0.5},{"n":"Anton Forsberg","t":"LAK","s":0.00102,"gs":40.7,"sh":0.5},{"n":"Arturs Silovs","t":"PIT","s":-0.00301,"gs":40.7,"sh":0.5},{"n":"Sergei Murashov","t":"PIT","s":-0.00059,"gs":40.7,"sh":0.5},{"n":"Mackenzie Blackwood","t":"COL","s":0.0011,"gs":38.3,"sh":0.47},{"n":"Stuart Skinner","t":"WPG","s":0.00042,"gs":36.7,"sh":0.45},{"n":"Adin Hill","t":"VGK","s":-0.00051,"gs":36.7,"sh":0.45},{"n":"Alex Lyon","t":"BUF","s":0.0017,"gs":36.7,"sh":0.45},{"n":"Frederik Andersen","t":"EDM","s":0.00184,"gs":36.7,"sh":0.45},{"n":"Joseph Woll","t":"PHI","s":0.00097,"gs":36.7,"sh":0.45},{"n":"Nico Daws","t":"NJD","s":-0.0,"gs":36.7,"sh":0.45},{"n":"Philipp Grubauer","t":"SEA","s":-0.00281,"gs":36.7,"sh":0.45},{"n":"Anthony Stolarz","t":"TOR","s":0.00266,"gs":32.6,"sh":0.4},{"n":"Tristan Jarry","t":"EDM","s":-0.00088,"gs":32.6,"sh":0.4},{"n":"Jordan Binnington","t":"STL","s":-0.00209,"gs":32.6,"sh":0.4},{"n":"Daniil Tarasov","t":"FLA","s":-0.00133,"gs":31.0,"sh":0.38},{"n":"Leevi Merilinen","t":"OTT","s":-0.00198,"gs":31.0,"sh":0.38},{"n":"Alex Nedeljkovic","t":"SJS","s":-0.00146,"gs":31.0,"sh":0.38},{"n":"Nikita Tolopilo","t":"VAN","s":-0.00135,"gs":31.0,"sh":0.38},{"n":"Ville Husso","t":"ANA","s":-0.00178,"gs":29.3,"sh":0.36},{"n":"Charlie Lindgren","t":"WSH","s":-0.00057,"gs":27.7,"sh":0.34},{"n":"Arvid Soderblom","t":"CHI","s":-0.00262,"gs":27.7,"sh":0.34},{"n":"Casey DeSmith","t":"DAL","s":0.00233,"gs":26.1,"sh":0.32},{"n":"David Rittich","t":"NYI","s":-0.00046,"gs":26.1,"sh":0.32},{"n":"Justus Annunen","t":"NSH","s":0.00041,"gs":26.1,"sh":0.32},{"n":"Filip Gustavsson","t":"MIN","s":0.00115,"gs":26.1,"sh":0.32},{"n":"Cam Talbot","t":"CBJ","s":-0.00042,"gs":26.1,"sh":0.32},{"n":"Jonas Johansson","t":"TBL","s":-0.00287,"gs":24.4,"sh":0.3},{"n":"Joonas Korpisalo","t":"NYR","s":-0.00171,"gs":24.4,"sh":0.3},{"n":"Devin Cooley","t":"CGY","s":0.00181,"gs":24.4,"sh":0.3},{"n":"Jacob Fowler","t":"MTL","s":0.00103,"gs":20.4,"sh":0.25}],"mine":["Mackenzie Blackwood","Jet Greaves","Linus Ullmark","Connor Hellebuyck","Stuart Skinner","Frederik Andersen"],"venue":{"home":{"sh":0.985,"dg":0.99},"away":{"sh":1.015,"dg":1.01}}};
+const TEAMS=Object.keys(D.teams).sort();
+const BY=Object.fromEntries(D.goalies.map(g=>[g.n,g]));
+let MINE=D.mine.slice();
+try{const s=localStorage.getItem("crease.mine");if(s){const a=JSON.parse(s);if(Array.isArray(a)&&a.length)MINE=a.filter(n=>BY[n]);}}catch(e){}
+
+function calc(gname,opp,venue){
+  const g=BY[gname]; if(!g||!D.teams[opp]||opp===g.t) return null;
+  const o=D.teams[opp], t=D.teams[g.t], v=D.venue[venue];
+  const shots=D.LG.sf*o.osf*t.dsa*v.sh;
+  const danger=D.LG.dgr*o.odg*t.ddg*v.dg;
+  const sv=1-danger+g.s;
+  return {shots,sv,saves:shots*sv,ga:shots*(1-sv)};
+}
+function spread(gname){
+  const g=BY[gname]; const out=[];
+  for(const o of TEAMS){ if(o===g.t) continue;
+    const h=calc(gname,o,"home"), a=calc(gname,o,"away");
+    out.push({opp:o,h,a,mid:(h.sv+a.sv)/2}); }
+  out.sort((x,y)=>y.mid-x.mid); return out;
+}
+function tierOf(gname,sv){
+  const s=spread(gname).map(r=>r.mid).sort((a,b)=>b-a);
+  const i=s.findIndex(v=>sv>=v); const p=(i<0?s.length:i)/s.length;
+  return p<=0.28?["g","start"]:p<=0.72?["m","neutral"]:["b","sit"];
+}
+const fmtSV=v=>v.toFixed(4).replace(/^0/,"");
+const SLOTS=[{g:"Mackenzie Blackwood",o:"CGY",v:"home"},{g:"Jet Greaves",o:"TBL",v:"away"},
+             {g:"Linus Ullmark",o:"CHI",v:"home"},{g:"Stuart Skinner",o:"COL",v:"away"}];
+try{const s=localStorage.getItem("crease.slots");if(s){const a=JSON.parse(s);
+  if(Array.isArray(a)&&a.length===4)a.forEach((x,i)=>{if(x&&BY[x.g])SLOTS[i]=x;});}}catch(e){}
+
+function goalieOptions(sel){
+  const mine=MINE.filter(n=>BY[n]), rest=D.goalies.map(g=>g.n).filter(n=>!MINE.includes(n));
+  const opt=n=>`<option value="${n}"${n===sel?" selected":""}>${n} \u00b7 ${BY[n].t}</option>`;
+  return (mine.length?`<optgroup label="My goalies">${mine.map(opt).join("")}</optgroup>`:"")+
+         `<optgroup label="All goalies">${rest.map(opt).join("")}</optgroup>`;
+}
+function teamOptions(team,sel){
+  return TEAMS.filter(t=>t!==team).map(t=>`<option value="${t}"${t===sel?" selected":""}>${t}</option>`).join("");
+}
+function render(){
+  const res=SLOTS.map(s=>calc(s.g,s.o,s.v));
+  let best=-1,bv=-1; res.forEach((r,i)=>{if(r&&r.sv>bv){bv=r.sv;best=i;}});
+  document.getElementById("grid").innerHTML=SLOTS.map((s,i)=>{
+    const r=res[i]; const g=BY[s.g];
+    const [cls,word]=r?tierOf(s.g,r.sv):["m","\u2014"];
+    return `<div class="slot${i===best?" best":""}">
+      <div class="slothead"><span class="slotno">Slot ${i+1}${i===best?" \u00b7 best of four":""}</span>
+        <span class="pill ${cls}">${word}</span></div>
+      <div><label class="fl" for="g${i}">Goalie</label>
+        <select id="g${i}" data-i="${i}" data-k="g">${goalieOptions(s.g)}</select></div>
+      <div class="row2">
+        <div><label class="fl" for="o${i}">Opponent</label>
+          <select id="o${i}" data-i="${i}" data-k="o">${teamOptions(g.t,s.o)}</select></div>
+        <div><label class="fl">Venue</label><div class="seg">
+          <button type="button" data-i="${i}" data-v="home" aria-pressed="${s.v==="home"}">Home</button>
+          <button type="button" data-i="${i}" data-v="away" aria-pressed="${s.v==="away"}">Away</button>
+        </div></div>
+      </div>
+      <div class="out">
+        <div><div class="sv">${r?fmtSV(r.sv):"\u2014"}</div><div class="svl">Save %</div></div>
+        <div class="stats">
+          <div class="st"><b>${r?r.shots.toFixed(1):"\u2014"}</b><span>Shots</span></div>
+          <div class="st"><b>${r?r.saves.toFixed(1):"\u2014"}</b><span>Saves</span></div>
+          <div class="st"><b>${r?r.ga.toFixed(2):"\u2014"}</b><span>GA</span></div>
+        </div>
+      </div>
+      <div class="note">${g.t} ${s.v==="home"?"vs":"at"} ${s.o} \u00b7 skill ${(g.s>=0?"+":"")+g.s.toFixed(4)} \u00b7 ${g.gs} proj starts</div>
+    </div>`;}).join("");
+  try{localStorage.setItem("crease.slots",JSON.stringify(SLOTS));}catch(e){}
+  renderRef();
+}
+function renderRef(){
+  const sel=document.getElementById("refg");
+  if(!sel.options.length){sel.innerHTML=goalieOptions(SLOTS[0].g);}
+  const name=sel.value||SLOTS[0].g; sel.value=name;
+  const rows=spread(name); const n=rows.length;
+  document.getElementById("reft").innerHTML=rows.map((r,i)=>{
+    const c=i/n<=0.28?"g":i/n<=0.72?"m":"b";
+    return `<tr><td class="q ${c}">${r.opp}</td>
+      <td>${r.h.shots.toFixed(1)}</td><td class="q ${c}">${fmtSV(r.h.sv)}</td><td>${r.h.saves.toFixed(1)}</td><td>${r.h.ga.toFixed(2)}</td>
+      <td>${r.a.shots.toFixed(1)}</td><td class="q ${c}">${fmtSV(r.a.sv)}</td><td>${r.a.saves.toFixed(1)}</td><td>${r.a.ga.toFixed(2)}</td></tr>`;}).join("");
+}
+document.addEventListener("change",e=>{
+  const t=e.target;
+  if(t.id==="refg"){renderRef();return;}
+  const i=t.dataset.i; if(i===undefined)return;
+  if(t.dataset.k==="g"){SLOTS[i].g=t.value; const nt=BY[t.value].t; if(SLOTS[i].o===nt)SLOTS[i].o=TEAMS.find(x=>x!==nt);}
+  if(t.dataset.k==="o")SLOTS[i].o=t.value;
+  render();
+});
+document.addEventListener("click",e=>{
+  const b=e.target.closest(".seg button"); if(!b)return;
+  SLOTS[b.dataset.i].v=b.dataset.v; render();
+});
+document.getElementById("base").textContent=
+  `league baseline  ${D.LG.sf.toFixed(2)} shots/gm  \u00b7  ${D.LG.dgr.toFixed(5)} xG/shot`;
+render();
+</script>
+</body>
+</html>
